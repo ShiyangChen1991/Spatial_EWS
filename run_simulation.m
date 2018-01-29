@@ -20,9 +20,14 @@ function [ S, T ] = run_simulation( model, size, bifurcation_parameter, sigma, s
 
     % stochastic simulation
     % drift
-    if model == 'harvest'
+    if isequal(model, 'harvest')
         F = @ harvest;
+    elseif isequal(model, 'eutrophication')
+        F = @ eutrophication;
+    elseif isequal(model, 'veg_turb')
+        F = @ veg_turb;
     end
+    
     % diffusion
     G0 = eye(size*size, size*size);
     G = @(t,X) sigma*G0;
@@ -30,27 +35,70 @@ function [ S, T ] = run_simulation( model, size, bifurcation_parameter, sigma, s
     SDE = sde(F,G,'StartState', x_ini);
     [S,T] = simulate(SDE, nPeriods, 'DeltaTime', dt);
 
-        function dpop = harvest(t, pop)
-        % harvesting model
-            K = 10;
-            D = 0.2;
-            c = c0 + delta_c*t;
+    function dpop = harvest(t, pop)
+    % harvesting model
+        K = 10;
+        d_r = 0.2;
+        c = c0 + delta_c*t;
 
-            % reshape
-            data = zeros(size, size);
-            for j = 1:size
-                data(j,:) = pop((j-1)*size+1:j*size);
-            end
-
-            % define dpop with reflective boundary condition
-            dpop = zeros(size*size,1);
-                for j=1:size
-                    for k=1:size
-                        X = data(j,k);
-                        dpop((j-1)*size+k) = r(j,k)*X*(1-X/K)-c*X^2/(X^2+1)+D*diffusion(size, data, j, k);    
-                    end
-                end    
+        % reshape
+        data = zeros(size, size);
+        for j = 1:size
+            data(j,:) = pop((j-1)*size+1:j*size);
         end
+
+        % define dpop with reflective boundary condition
+        dpop = zeros(size*size,1);
+        for j=1:size
+            for k=1:size
+                X = data(j,k);
+                dpop((j-1)*size+k) = r(j,k)*X*(1-X/K)-c*X^2/(X^2+1)+d_r*diffusion(size, data, j, k);    
+            end
+        end    
+    end
+
+    function dpop = eutrophication(t, pop)
+    % harvesting model
+        a = 0.5;
+        d_r = 0.2;
+        c = c0 + delta_c*t;
+
+        % reshape
+        data = zeros(size, size);
+        for j = 1:size
+            data(j,:) = pop((j-1)*size+1:j*size);
+        end
+
+        % define dpop with reflective boundary condition
+        dpop = zeros(size*size,1);
+        for j=1:size
+            for k=1:size
+                X = data(j,k);
+                dpop((j-1)*size+k) = a - r(j,k)*X+c*X^8/(X^8+1)+d_r*diffusion(size, data, j, k);    
+            end
+        end    
+    end
+
+    function dpop = veg_turb(t, pop)
+    % harvesting model
+        d_r = 0.2;
+        c = c0 + delta_c*t;
+
+        % reshape
+        data = zeros(size, size);
+        for j = 1:size
+            data(j,:) = pop((j-1)*size+1:j*size);
+        end
+
+        % define dpop with reflective boundary condition
+        dpop = zeros(size*size,1);
+        for j=1:size
+            for k=1:size
+                X = data(j,k);
+                dpop((j-1)*size+k) = 0.5*X*(1-X*(r(j,k)^4+c^4)/r(j,k)^4)+d_r*diffusion(size, data, j, k);    
+            end
+        end    
+    end
 end
 
 function diff = diffusion(size, data, j, k)
