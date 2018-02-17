@@ -58,7 +58,7 @@ function [ S, T ] = run_simulation( model, size, bifurcation_parameter, sigma, s
     end
 
     function dpop = eutrophication(t, pop)
-    % harvesting model
+    % Eutrophication model
         a = 0.5;
         d_r = 0.2;
         c = c0 + delta_c*t;
@@ -80,8 +80,9 @@ function [ S, T ] = run_simulation( model, size, bifurcation_parameter, sigma, s
     end
 
     function dpop = veg_turb(t, pop)
-    % harvesting model
+    % Vegetation?turbidity model
         d_r = 0.2;
+        h_v = 0.2;
         c = c0 + delta_c*t;
 
         % reshape
@@ -95,7 +96,8 @@ function [ S, T ] = run_simulation( model, size, bifurcation_parameter, sigma, s
         for j=1:size
             for k=1:size
                 X = data(j,k);
-                dpop((j-1)*size+k) = 0.5*X*(1-X*(r(j,k)^4+c^4)/r(j,k)^4)+d_r*diffusion(size, data, j, k);    
+                E = c*h_v/(h_v+X);
+                dpop((j-1)*size+k) = 0.5*X*(1-X*(r(j,k)^4+E^4)/r(j,k)^4)+d_r*diffusion(size, data, j, k);    
             end
         end    
     end

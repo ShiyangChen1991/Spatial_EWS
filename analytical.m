@@ -1,4 +1,4 @@
-function [ V_c, D_c ] = analytical( model, steady_state, Diffusion)
+function [ V_c, D_c ] = analytical( model, bifurcation_parameter, spatial_parameter, steady_state, Diffusion)
 % Calculate the analytical solution of the covariance matrix using the
 % linearized Fokker-Planck equation
 % Parameters:
@@ -9,13 +9,19 @@ function [ V_c, D_c ] = analytical( model, steady_state, Diffusion)
     % model factory
     if model == "harvest"
         fun = @harvest;
+    elseif model == "eutrophication"
+        fun = @eutrophication;
+    elseif model == "veg_turb"
+        fun = @veg_turb;
     end
+    c = bifurcation_parameter;
+    r = spatial_parameter;
     
     % reshape the steady state solution and calculate the Jocabian matrix
     shape = size(steady_state);
     size_x =shape(1); size_y = shape(2);
     x0 = reshape(steady_state,[size_x*size_y,1]);
-    
+
     % calculate the Jacobian matrix
     options = optimoptions('fsolve','Display','iter');
     [~,~,~,~,jacobian]  = fsolve(fun,x0,options);
@@ -37,11 +43,10 @@ function [ V_c, D_c ] = analytical( model, steady_state, Diffusion)
     % calculate the eigenvalues and eigenvectors of the covariance matrix
     [V_c,D_c] = eig(Cov_Matrix);
     
-    function dpop = harvest(t, pop)
+    function dpop = harvest(pop)
     % harvesting model
         K = 10;
         R = 0.2;
-        c = c0 + delta_c*t;
 
         % reshape
         data = zeros(size_x, size_y);
@@ -55,6 +60,48 @@ function [ V_c, D_c ] = analytical( model, steady_state, Diffusion)
             for k=1:size_y
                 X = data(h,k);
                 dpop((h-1)*size_x+k) = r(h,k)*X*(1-X/K)-c*X^2/(X^2+1)+R*diffusion(size_x, data, h, k);    
+            end
+        end    
+    end
+
+    function dpop = eutrophication(pop)
+    % Eutrophication model
+        a = 0.5;
+        d_r = 0.2;
+
+        % reshape
+        data = zeros(size_x, size_y);
+        for k = 1:size_x
+            data(k,:) = pop((k-1)*size_x+1:k*size_x);
+        end
+
+        % define dpop with reflective boundary condition
+        dpop = zeros(size_x*size_y,1);
+        for h=1:size_x
+            for k=1:size_y
+                X = data(h,k);
+                dpop((h-1)*size_x+k) = a - r(h,k)*X+c*X^8/(X^8+1)+d_r*diffusion(size_x, data, h, k);    
+            end
+        end    
+    end
+    function dpop = veg_turb(pop)
+    % Vegetation?turbidity model
+        d_r = 0.2;
+        h_v = 0.2;
+
+        % reshape
+        data = zeros(size_x, size_y);
+        for k = 1:size_x
+            data(k,:) = pop((k-1)*size_x+1:k*size_x);
+        end
+
+        % define dpop with reflective boundary condition
+        dpop = zeros(size_x*size_y,1);
+        for h=1:size_x
+            for k=1:size_y
+                X = data(h,k);
+                E = c*h_v/(h_v+X);
+                dpop((h-1)*size_x+k) = 0.5*X*(1-X*(r(h,k)^4+E^4)/r(h,k)^4)+d_r*diffusion(size_x, data, h, k);    
             end
         end    
     end
